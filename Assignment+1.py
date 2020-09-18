@@ -1,0 +1,338 @@
+
+# coding: utf-8
+
+# ---
+# 
+# _You are currently looking at **version 1.3** of this notebook. To download notebooks and datafiles, as well as get help on Jupyter notebooks in the Coursera platform, visit the [Jupyter Notebook FAQ](https://www.coursera.org/learn/python-machine-learning/resources/bANLa) course resource._
+# 
+# ---
+
+# # Assignment 1 - Introduction to Machine Learning
+
+# For this assignment, you will be using the Breast Cancer Wisconsin (Diagnostic) Database to create a classifier that can help diagnose patients. First, read through the description of the dataset (below).
+
+# In[1]:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+
+cancer = load_breast_cancer()
+#print(type(cancer)) #type is sklearn.datasets
+
+#print(cancer.data[0]) #data has 569 values with 30 columns
+#print(cancer)
+print(cancer) # Print the data set description
+
+
+# In[ ]:
+
+#print(cancer.DESCR)
+'''Attribute Information:
+        - radius (mean of distances from center to points on the perimeter)
+        - texture (standard deviation of gray-scale values)
+        - perimeter
+        - area
+        - smoothness (local variation in radius lengths)
+        - compactness (perimeter^2 / area - 1.0)
+        - concavity (severity of concave portions of the contour)
+        - concave points (number of concave portions of the contour)
+        - symmetry 
+        - fractal dimension ("coastline approximation" - 1)'''
+
+
+# The object returned by `load_breast_cancer()` is a scikit-learn Bunch object, which is similar to a dictionary.
+
+# In[2]:
+
+print(cancer.keys())
+
+
+# ### Question 0 (Example)
+# 
+# How many features does the breast cancer dataset have?
+# 
+# *This function should return an integer.*
+
+# In[3]:
+
+# You should write your whole answer within the function provided. The autograder will call
+# this function and compare the return value against the correct solution value
+def answer_zero():
+    # This function returns the number of features of the breast cancer dataset, which is an integer. 
+    # The assignment question description will tell you the general format the autograder is expecting
+    return len(cancer['feature_names'])
+print(answer_zero()) 
+
+
+# ### Question 1
+# 
+# Scikit-learn works with lists, numpy arrays, scipy-sparse matrices, and pandas DataFrames, so converting the dataset to a DataFrame is not necessary for training this model. Using a DataFrame does however help make many things easier such as munging data, so let's practice creating a classifier with a pandas DataFrame. 
+# 
+# 
+# 
+# Convert the sklearn.dataset `cancer` to a DataFrame. 
+# 
+# *This function should return a `(569, 31)` DataFrame with * 
+# 
+# *columns = *
+# 
+#     ['mean radius', 'mean texture', 'mean perimeter', 'mean area',
+#     'mean smoothness', 'mean compactness', 'mean concavity',
+#     'mean concave points', 'mean symmetry', 'mean fractal dimension',
+#     'radius error', 'texture error', 'perimeter error', 'area error',
+#     'smoothness error', 'compactness error', 'concavity error',
+#     'concave points error', 'symmetry error', 'fractal dimension error',
+#     'worst radius', 'worst texture', 'worst perimeter', 'worst area',
+#     'worst smoothness', 'worst compactness', 'worst concavity',
+#     'worst concave points', 'worst symmetry', 'worst fractal dimension',
+#     'target']
+# 
+# *and index = *
+# 
+#     RangeIndex(start=0, stop=569, step=1)
+
+# In[4]:
+
+import matplotlib.pyplot as plt
+import pandas as pd
+def answer_one():
+    #Note: data has on 30 columns so to create a dataframe => discard 'target' in columns = [...]
+    columns = ['mean radius', 'mean texture', 'mean perimeter', 'mean area', #names of columns = feature_names
+'mean smoothness', 'mean compactness', 'mean concavity',
+'mean concave points', 'mean symmetry', 'mean fractal dimension',
+'radius error', 'texture error', 'perimeter error', 'area error',
+'smoothness error', 'compactness error', 'concavity error',
+'concave points error', 'symmetry error', 'fractal dimension error',
+'worst radius', 'worst texture', 'worst perimeter', 'worst area',
+'worst smoothness', 'worst compactness', 'worst concavity',
+'worst concave points', 'worst symmetry', 'worst fractal dimension',
+'target']
+    index = range(0,569,1)
+    df = pd.DataFrame(data = cancer['data'], index = index, columns = columns[:30])
+    df['target'] = cancer.target    
+    return df
+
+
+print(answer_one())
+
+
+# ### Question 2
+# What is the class distribution? (i.e. how many instances of `malignant` (encoded 0) and how many `benign` (encoded 1)?)
+# 
+# *This function should return a Series named `target` of length 2 with integer values and index =* `['malignant', 'benign']`
+
+# In[5]:
+
+def answer_two():
+    #Note: You need to add 'target' to the dataframe in the answer_one. Because 'target' column in the original file = nparray 
+        #=> hence: Pandas can't hash nparray => add 'target' to df to tranfer target's values to st that's hashable
+    
+    #print(cancer.target)
+    #class = type/group
+    #0: means malignant cancer(harmful cancer)
+    #1: means benign cancer (gentle cancer)
+    cancerdf = answer_one()
+    malignant_count = len(cancerdf[cancerdf.target == 0])
+    #print(malignant_count)
+    benign_count = len(cancerdf[cancerdf['target'] == 1])
+    target = pd.Series(data=[malignant_count,benign_count], index=['malignant', 'benign'])
+    return target
+print(answer_two())
+
+
+# ### Question 3
+# Split the DataFrame into `X` (the data) and `y` (the labels).
+# 
+# *This function should return a tuple of length 2:* `(X, y)`*, where* 
+# * `X`*, a pandas DataFrame, has shape* `(569, 30)`
+# * `y`*, a pandas Series, has shape* `(569,)`.
+
+# In[7]:
+
+def answer_three():
+    cancerdf = answer_one() 
+    X = cancerdf.iloc[:,:30]
+    y = cancerdf.iloc[:,30:32] #Dataframe
+    y = cancerdf.target #transfer to Series to use in answer_five
+    #print(y) 
+    return X, y
+#print(answer_three())
+
+
+# ### Question 4
+# Using `train_test_split`, split `X` and `y` into training and test sets `(X_train, X_test, y_train, and y_test)`.
+# 
+# **Set the random number generator state to 0 using `random_state=0` to make sure your results match the autograder!**
+# 
+# *This function should return a tuple of length 4:* `(X_train, X_test, y_train, y_test)`*, where* 
+# * `X_train` *has shape* `(426, 30)`
+# * `X_test` *has shape* `(143, 30)`
+# * `y_train` *has shape* `(426,)`
+# * `y_test` *has shape* `(143,)`
+
+# In[8]:
+
+from sklearn.model_selection import train_test_split
+
+def answer_four():
+    X, y = answer_three()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0) 
+    return X_train, X_test, y_train, y_test
+
+#print(answer_four())
+
+
+# ### Question 5
+# Using KNeighborsClassifier, fit a k-nearest neighbors (knn) classifier with `X_train`, `y_train` and using one nearest neighbor (`n_neighbors = 1`).
+# 
+# *This function should return a * `sklearn.neighbors.classification.KNeighborsClassifier`.
+
+# In[10]:
+
+from sklearn.neighbors import KNeighborsClassifier
+
+def answer_five():
+    X_train, X_test, y_train, y_test = answer_four()
+    knn = KNeighborsClassifier(n_neighbors = 1)
+    knn.fit(X_train, y_train)#Link training data with labels ('malignant', 'benign')
+    return knn
+#print(answer_five())
+
+
+# ### Question 6
+# Using your knn classifier, predict the class label using the mean value for each feature.
+# 
+# Hint: You can use `cancerdf.mean()[:-1].values.reshape(1, -1)` which gets the mean value for each feature, ignores the target column, and reshapes the data from 1 dimension to 2 (necessary for the precict method of KNeighborsClassifier).
+# 
+# This function should return a numpy array either `array([ 0.])` or `array([ 1.])
+
+# In[12]:
+
+def answer_six():
+    #feature here = a column = 30 features
+    cancerdf = answer_one()
+    means = cancerdf.mean()[:-1].values.reshape(1 , -1) 
+    #print(means.shape)
+    #cancerdf.mean()[:-1]: returns a dict with keys = column labels and values = column values
+    #cancerdf.mean()[:-1].values: a list of numpy.array
+    #.reshape(#of rows, #of columns):Change the shape of our figure
+    #means.score(X_test, y_test)   
+    knn = answer_five()
+    prediction = knn.predict(means)
+    return prediction[0]
+#print(answer_six())
+
+
+# ### Question 7
+# Using your knn classifier, predict the class labels for the test set `X_test`.
+# 
+# *This function should return a numpy array with shape `(143,)` and values either `0.0` or `1.0`.*
+
+# In[13]:
+
+def answer_seven():
+    X_train, X_test, y_train, y_test = answer_four() #split into training data and test data
+    knn = answer_five() #Create classifier object and train the data
+    #print(X_test) #143 rows x 30 columns
+    prediction = knn.predict(X_test)  
+    print(prediction.shape)
+    return prediction
+#print(answer_seven())
+
+
+# ### Question 8
+# Find the score (mean accuracy) of your knn classifier using `X_test` and `y_test`.
+# 
+# *This function should return a float between 0 and 1*
+
+# In[14]:
+
+def answer_eight():
+    X_train, X_test, y_train, y_test = answer_four()
+    knn = answer_five()
+    Ich_liebe_dich = knn.score(X_test, y_test)
+    
+    return Ich_liebe_dich
+answer_eight()
+
+
+# ### Optional plot
+# 
+# Try using the plotting function below to visualize the differet predicition scores between training and test sets, as well as malignant and benign cells.
+
+# In[16]:
+
+def accuracy_plot():
+    import matplotlib.pyplot as plt
+
+    #get_ipython().magic('matplotlib notebook')
+
+    X_train, X_test, y_train, y_test = answer_four()
+
+    # Find the training and testing accuracies by target value (i.e. malignant, benign)
+    mal_train_X = X_train[y_train==0]#take only rows which are true
+    #print(mal_train_X)
+    mal_train_y = y_train[y_train==0]#take labels = 0
+    ben_train_X = X_train[y_train==1]
+    ben_train_y = y_train[y_train==1]
+
+    mal_test_X = X_test[y_test==0]
+    mal_test_y = y_test[y_test==0]
+    ben_test_X = X_test[y_test==1]
+    ben_test_y = y_test[y_test==1]
+
+    knn = answer_five()
+
+    scores = [knn.score(mal_train_X, mal_train_y), knn.score(ben_train_X, ben_train_y), 
+              knn.score(mal_test_X, mal_test_y), knn.score(ben_test_X, ben_test_y)]
+
+
+    plt.figure()
+
+    # Plot the scores as a bar chart
+    bars = plt.bar(np.arange(4), scores, color=['#4c72b0','#4c72b0','#55a868','#55a868'])
+    #plt.bar(x-coordinates, y-coordinates)
+
+    # directly label the score onto the bars
+    for bar in bars:
+        height = bar.get_height()
+        plt.gca().text(bar.get_x() + bar.get_width()/2, height*.90, '{0:.{1}f}'.format(height, 2), 
+                     ha='center', color='w', fontsize=11)
+        #{0:.{1}f}: string format python. 
+                #0 and {1} means index number
+                # ':' adds another operation/format to the placeholder
+                # f specifies the format is dealing with a float number
+                # '.': truncates numbers after '.' according to 'the interger' after '.'. In this example: 1.0000000 => 1.00. 
+                        #Because after '.' is 2
+        #.text(the position to place the text, the text ): insert text to each bar 
+
+    # remove all the ticks (both axes), and tick labels on the Y axis
+    plt.tick_params(top='off', bottom='off', left='off', right='off', labelleft='off', labelbottom='on')
+
+    # remove the frame of the chart
+    for spine in plt.gca().spines.values():
+        spine.set_visible(False)
+
+    plt.xticks([0,1,2,3], ['Malignant\nTraining', 'Benign\nTraining', 'Malignant\nTest', 'Benign\nTest'], alpha=0.8);
+    #plt.xticks(the x-coordinates, the text to insert to the coordinate, blurred or bold)
+    plt.title('Training and Test Accuracies for Malignant and Benign Cells', alpha=0.8)
+
+
+# Uncomment the plotting function to see the visualization.
+# 
+# **Comment out** the plotting function when submitting your notebook for grading. 
+
+# In[17]:
+
+accuracy_plot()
+plt.show()
+#Interpret:
+    #1) The accuracy of cancer predicition = 100% for both malignant & benign training data
+    #2) The accuracy of cancer predicition = 87% for malignant test data & 94% for benign data
+
+
+
+
+
+
